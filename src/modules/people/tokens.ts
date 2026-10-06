@@ -1,0 +1,1 @@
+export const PEOPLE_SERVICE = Symbol('PEOPLE_SERVICE');
