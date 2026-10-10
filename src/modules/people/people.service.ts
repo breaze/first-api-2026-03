@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PeopleServiceInterface } from './people-service-interface.js';
 import { CreatePersonInDto } from './dto/create-person-in-dto.js';
 import { CreatePersonOutDto } from './dto/create-person-out-dto.js';
@@ -15,23 +15,57 @@ export class PeopleService implements PeopleServiceInterface{
         @InjectRepository(People)
         private readonly peopleRepository: Repository<People>
     ){}
-    getPerson(personId: number): Promise<GetPersonOutDto> {
-        throw new Error('Method not implemented.');
-    }
-    getPeople(): Promise<GetPeopleOutDto> {
-        throw new Error('Method not implemented.');
-    }
-    updatePerson(personId: number, updatePersonInDTO: UpdatePersonInDto): Promise<boolean> {
-        throw new Error('Method not implemented.');
-    }
-    deletePerson(personId: number): Promise<boolean> {
-        throw new Error('Method not implemented.');
-    }
-    async createPerson(createPersonInDTO: CreatePersonInDto): Promise<CreatePersonOutDto> {
-        const person = await this.peopleRepository.create(createPersonInDTO);
+    async getPerson(personId: number): Promise<GetPersonOutDto> {
+        const person = await this.peopleRepository.findOneBy({personId});
+        if(!person){
+            throw new NotFoundException(`Person with id ${personId} not found`);
+        }
         const outDTO = {
             personId: person.personId,
             name: person.name
+        }
+        return outDTO;
+
+    }
+    async getPeople(): Promise<GetPeopleOutDto> {
+        const people = await this.peopleRepository.find();
+        const mappedPeople: GetPersonOutDto[] = [];
+        for(const person of people){
+            mappedPeople.push({
+                personId: person.personId,
+                name: person.name
+            })
+        }
+        return {
+            people: mappedPeople
+        }
+    }
+    async updatePerson(personId: number, updatePersonInDTO: UpdatePersonInDto): Promise<boolean> {
+        const result = await this.peopleRepository.update(
+            {personId},
+            {
+                name: updatePersonInDTO.name
+            }
+        );
+        if((result.affected ?? 0) === 0){
+            throw new NotFoundException(`Person with id ${personId} not found`) //String template js
+        }
+        return true;
+    }
+    async deletePerson(personId: number): Promise<boolean> {
+        const result = await this.peopleRepository.delete({personId});
+        if((result.affected ?? 0) === 0){
+            throw new NotFoundException(`Person with id ${personId} not found`) //String template js
+        }
+        return true;
+    }
+    async createPerson(createPersonInDTO: CreatePersonInDto): Promise<CreatePersonOutDto> {
+        const person = this.peopleRepository.create(createPersonInDTO);
+        const createdPerson = await this.peopleRepository.save(person);
+        console.log(createdPerson);
+        const outDTO = {
+            name: createdPerson.name,
+            id: createdPerson.personId
         }
         return outDTO;
     }
